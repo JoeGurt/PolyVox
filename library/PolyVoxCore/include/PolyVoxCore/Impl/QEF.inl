@@ -350,11 +350,6 @@ void qrstep(
         return;
     }
 
-    if (cols == 1) {
-    char *bomb = 0;
-    *bomb = 0;
-    }
-
     // handle zeros on the diagonal or at its end
     for (i = 0; i < cols - 1; ++i)
         if (tau_u[i] == 0.0) {

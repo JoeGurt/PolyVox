@@ -58,6 +58,7 @@ SET(CORE_INC_FILES
 	include/PolyVoxCore/DefaultIsQuadNeeded.h
 	include/PolyVoxCore/DefaultMarchingCubesController.h
 	include/PolyVoxCore/Density.h
+	include/PolyVoxCore/DualContouringSurfaceExtractor.h
 	include/PolyVoxCore/FilePager.h
 	include/PolyVoxCore/GradientEstimators.h
 	include/PolyVoxCore/GradientEstimators.inl
