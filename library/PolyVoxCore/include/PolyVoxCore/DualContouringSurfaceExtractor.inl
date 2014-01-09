@@ -127,7 +127,7 @@ namespace PolyVox
 				matrix[rows][2] = normal.getZ();
 				
 				Vector3DFloat p = vertices[i] - massPoint;
-				Vector3DFloat product = normal * p;
+				const Vector3DFloat product = normal * p;
 				
 				vector[rows] = product.getX() + product.getY() + product.getZ();
 				
@@ -136,8 +136,7 @@ namespace PolyVox
 				++rows;
 			}
 			
-			auto qefResult = evaluateQEF(matrix, vector, rows);
-			Vector3DFloat vertexPosition = qefResult + massPoint;
+			const auto vertexPosition = evaluateQEF(matrix, vector, rows) + massPoint;
 			
 			if(cellVertexNormal.lengthSquared() > 0.000001f) 
 			{
@@ -158,10 +157,20 @@ namespace PolyVox
 	{
 		Timer timer;
 		
-		Region cellRegion{Vector3DInt32{0,0,0}, region.getDimensionsInVoxels() + Vector3DInt32{1,1,1}};
-		auto cellRegionXDimension = cellRegion.getDimensionsInVoxels().getX();
-		auto cellRegionYDimension = cellRegion.getDimensionsInVoxels().getY();
-		auto cellRegionZDimension = cellRegion.getDimensionsInVoxels().getZ();
+		const auto regionXDimension = region.getDimensionsInVoxels().getX();
+		const auto regionYDimension = region.getDimensionsInVoxels().getY();
+		const auto regionZDimension = region.getDimensionsInVoxels().getZ();
+		
+		const auto cellRegionXDimension = regionXDimension+1;
+		const auto cellRegionYDimension = regionYDimension+1;
+		const auto cellRegionZDimension = regionZDimension+1;
+		
+		const auto gradientRegionXDimension = regionXDimension+2;
+		const auto gradientRegionYDimension = regionYDimension+2;
+		const auto gradientRegionZDimension = regionZDimension+2;
+		
+		std::vector<std::pair<typename VolumeType::VoxelType*, Vector3DFloat>> gradients;
+		gradients.reserve(gradientRegionXDimension * gradientRegionYDimension * gradientRegionZDimension);
 		
 		std::vector<CellData<typename VolumeType::VoxelType>> cells;
 		cells.reserve(cellRegionXDimension * cellRegionYDimension * cellRegionZDimension);
@@ -170,7 +179,7 @@ namespace PolyVox
 		volSampler.setPosition(region.getLowerCorner());
 		volSampler.setWrapMode(WrapMode::Border, -100.0); // -100.0 is well below the threshold
 		
-		float threshold = 0;
+		const float threshold = 0.0f;
 		
 		SurfaceMesh<PositionMaterialNormal> mesh;
 		
@@ -186,50 +195,47 @@ namespace PolyVox
 			{
 				for(int32_t cellX = 0; cellX < cellRegionXDimension; cellX++)
 				{
-					//For each cell, calculate the vertex position
+					//For each cell, calculate the edge intersection points and normals
 					volSampler.setPosition(lowerCornerX+cellX-1, lowerCornerY+cellY-1, lowerCornerZ+cellZ-1);
 					
-					typename VolumeType::VoxelType v000{volSampler.getVoxel()};
-					typename VolumeType::VoxelType v100{volSampler.peekVoxel1px0py0pz()};
-					typename VolumeType::VoxelType v010{volSampler.peekVoxel0px1py0pz()};
-					typename VolumeType::VoxelType v001{volSampler.peekVoxel0px0py1pz()};
+					const auto& voxel = static_cast<float>(volSampler.getVoxel());
+					const auto& voxel1px = static_cast<float>(volSampler.peekVoxel1px0py0pz());
+					const auto& voxel1py = static_cast<float>(volSampler.peekVoxel0px1py0pz());
+					const auto& voxel1pz = static_cast<float>(volSampler.peekVoxel0px0py1pz());
 					
-					auto voxel1nx = static_cast<float>(volSampler.peekVoxel1nx0py0pz());
-					//auto voxel1px = static_cast<float>(volSampler.peekVoxel1px0py0pz());
-					auto voxel1ny = static_cast<float>(volSampler.peekVoxel0px1ny0pz());
-					//auto voxel1py = static_cast<float>(volSampler.peekVoxel0px1py0pz());
-					auto voxel1nz = static_cast<float>(volSampler.peekVoxel0px0py1nz());
-					//auto voxel1pz = static_cast<float>(volSampler.peekVoxel0px0py1pz());
-					Vector3DFloat g000(voxel1nx - v100, voxel1ny - v010, voxel1nz - v001);
+					const auto& voxel1nx = static_cast<float>(volSampler.peekVoxel1nx0py0pz());
+					const auto& voxel1ny = static_cast<float>(volSampler.peekVoxel0px1ny0pz());
+					const auto& voxel1nz = static_cast<float>(volSampler.peekVoxel0px0py1nz());
+					const Vector3DFloat g000(voxel1nx - voxel1px, voxel1ny - voxel1py, voxel1nz - voxel1pz);
 					volSampler.movePositiveX();
-					auto voxel2px = static_cast<float>(volSampler.peekVoxel1px0py0pz());
-					auto voxel1px1ny = static_cast<float>(volSampler.peekVoxel0px1ny0pz());
-					auto voxel1px1py = static_cast<float>(volSampler.peekVoxel0px1py0pz());
-					auto voxel1px1nz = static_cast<float>(volSampler.peekVoxel0px0py1nz());
-					auto voxel1px1pz = static_cast<float>(volSampler.peekVoxel0px0py1pz());
-					Vector3DFloat g100(v000 - voxel2px, voxel1px1ny - voxel1px1py, voxel1px1nz - voxel1px1pz);
+					const auto& voxel2px = static_cast<float>(volSampler.peekVoxel1px0py0pz());
+					const auto& voxel1px1ny = static_cast<float>(volSampler.peekVoxel0px1ny0pz());
+					const auto& voxel1px1py = static_cast<float>(volSampler.peekVoxel0px1py0pz());
+					const auto& voxel1px1nz = static_cast<float>(volSampler.peekVoxel0px0py1nz());
+					const auto& voxel1px1pz = static_cast<float>(volSampler.peekVoxel0px0py1pz());
+					const Vector3DFloat g100(voxel - voxel2px, voxel1px1ny - voxel1px1py, voxel1px1nz - voxel1px1pz);
 					volSampler.moveNegativeX();
 					volSampler.movePositiveY();
-					auto voxel1nx1py = static_cast<float>(volSampler.peekVoxel1nx0py0pz());
-					auto voxel2py = static_cast<float>(volSampler.peekVoxel0px1py0pz());
-					auto voxel1py1nz = static_cast<float>(volSampler.peekVoxel0px0py1nz());
-					auto voxel1py1pz = static_cast<float>(volSampler.peekVoxel0px0py1pz());
-					Vector3DFloat g010(voxel1nx1py - voxel1px1py, v000 - voxel2py, voxel1py1nz - voxel1py1pz);
+					const auto& voxel1nx1py = static_cast<float>(volSampler.peekVoxel1nx0py0pz());
+					const auto& voxel2py = static_cast<float>(volSampler.peekVoxel0px1py0pz());
+					const auto& voxel1py1nz = static_cast<float>(volSampler.peekVoxel0px0py1nz());
+					const auto& voxel1py1pz = static_cast<float>(volSampler.peekVoxel0px0py1pz());
+					const Vector3DFloat g010(voxel1nx1py - voxel1px1py, voxel - voxel2py, voxel1py1nz - voxel1py1pz);
 					volSampler.moveNegativeY();
 					volSampler.movePositiveZ();
-					auto voxel1nx1pz = static_cast<float>(volSampler.peekVoxel1nx0py0pz());
-					auto voxel1ny1pz = static_cast<float>(volSampler.peekVoxel0px1ny0pz());
-					auto voxel2pz = static_cast<float>(volSampler.peekVoxel0px0py1pz());
-					Vector3DFloat g001(voxel1nx1pz - voxel1px1pz, voxel1ny1pz - voxel1py1pz, v000 - voxel2pz);
+					const auto& voxel1nx1pz = static_cast<float>(volSampler.peekVoxel1nx0py0pz());
+					const auto& voxel1ny1pz = static_cast<float>(volSampler.peekVoxel0px1ny0pz());
+					const auto& voxel2pz = static_cast<float>(volSampler.peekVoxel0px0py1pz());
+					const Vector3DFloat g001(voxel1nx1pz - voxel1px1pz, voxel1ny1pz - voxel1py1pz, voxel - voxel2pz);
 					
-					cells.push_back({calculateEdge(v000, v100, g000, g100, threshold), calculateEdge(v000, v010, g000, g010, threshold), calculateEdge(v000, v001, g000, g001, threshold)});
+					cells.push_back({calculateEdge(voxel, voxel1px, g000, g100, threshold), calculateEdge(voxel, voxel1py, g000, g010, threshold), calculateEdge(voxel, voxel1pz, g000, g001, threshold)});
 					
 					if(cellZ >= 1 && cellY >= 1 && cellX >= 1)
 					{
 						//After the first rows and columns are done, start calculating vertex positions
-						int32_t cellXVertex = cellX-1;
-						int32_t cellYVertex = cellY-1;
-						int32_t cellZVertex = cellZ-1;
+						const int32_t cellXVertex = cellX-1;
+						const int32_t cellYVertex = cellY-1;
+						const int32_t cellZVertex = cellZ-1;
 						
 						auto& cell = cells[convert(cellXVertex, cellYVertex, cellZVertex, cellRegionXDimension, cellRegionYDimension)];
 						
@@ -265,27 +271,27 @@ namespace PolyVox
 								//Once the second rows and colums are done, start connecting up edges
 								if(cell.edges[0].intersects)
 								{
-									auto v1 = cells[convert(cellXVertex, cellYVertex-1, cellZVertex, cellRegionXDimension, cellRegionYDimension)];
-									auto v2 = cells[convert(cellXVertex, cellYVertex, cellZVertex-1, cellRegionXDimension, cellRegionYDimension)];
-									auto v3 = cells[convert(cellXVertex, cellYVertex-1, cellZVertex-1, cellRegionXDimension, cellRegionYDimension)];
+									const auto& v1 = cells[convert(cellXVertex, cellYVertex-1, cellZVertex, cellRegionXDimension, cellRegionYDimension)];
+									const auto& v2 = cells[convert(cellXVertex, cellYVertex, cellZVertex-1, cellRegionXDimension, cellRegionYDimension)];
+									const auto& v3 = cells[convert(cellXVertex, cellYVertex-1, cellZVertex-1, cellRegionXDimension, cellRegionYDimension)];
 									mesh.addTriangle(cell.vertexIndex, v1.vertexIndex, v2.vertexIndex);
 									mesh.addTriangle(v3.vertexIndex, v2.vertexIndex, v1.vertexIndex);
 								}
 								
 								if(cell.edges[1].intersects)
 								{
-									auto v1 = cells[convert(cellXVertex-1, cellYVertex, cellZVertex, cellRegionXDimension, cellRegionYDimension)];
-									auto v2 = cells[convert(cellXVertex, cellYVertex, cellZVertex-1, cellRegionXDimension, cellRegionYDimension)];
-									auto v3 = cells[convert(cellXVertex-1, cellYVertex, cellZVertex-1, cellRegionXDimension, cellRegionYDimension)];
+									const auto& v1 = cells[convert(cellXVertex-1, cellYVertex, cellZVertex, cellRegionXDimension, cellRegionYDimension)];
+									const auto& v2 = cells[convert(cellXVertex, cellYVertex, cellZVertex-1, cellRegionXDimension, cellRegionYDimension)];
+									const auto& v3 = cells[convert(cellXVertex-1, cellYVertex, cellZVertex-1, cellRegionXDimension, cellRegionYDimension)];
 									mesh.addTriangle(cell.vertexIndex, v1.vertexIndex, v2.vertexIndex);
 									mesh.addTriangle(v3.vertexIndex, v2.vertexIndex, v1.vertexIndex);
 								}
 								
 								if(cell.edges[2].intersects)
 								{
-									auto v1 = cells[convert(cellXVertex-1, cellYVertex, cellZVertex, cellRegionXDimension, cellRegionYDimension)];
-									auto v2 = cells[convert(cellXVertex, cellYVertex-1, cellZVertex, cellRegionXDimension, cellRegionYDimension)];
-									auto v3 = cells[convert(cellXVertex-1, cellYVertex-1, cellZVertex, cellRegionXDimension, cellRegionYDimension)];
+									const auto& v1 = cells[convert(cellXVertex-1, cellYVertex, cellZVertex, cellRegionXDimension, cellRegionYDimension)];
+									const auto& v2 = cells[convert(cellXVertex, cellYVertex-1, cellZVertex, cellRegionXDimension, cellRegionYDimension)];
+									const auto& v3 = cells[convert(cellXVertex-1, cellYVertex-1, cellZVertex, cellRegionXDimension, cellRegionYDimension)];
 									mesh.addTriangle(cell.vertexIndex, v1.vertexIndex, v2.vertexIndex);
 									mesh.addTriangle(v3.vertexIndex, v2.vertexIndex, v1.vertexIndex);
 								}
