@@ -156,7 +156,8 @@ namespace PolyVox
 	template<typename VolumeType>
 	SurfaceMesh<PositionMaterialNormal> dualContouringSurfaceExtractor(VolumeType* volData, Region region)
 	{
-		Timer timer;
+		//Timer timer;
+		Timer totalTimer;
 		
 		const auto regionXDimension = region.getDimensionsInVoxels().getX();
 		const auto regionYDimension = region.getDimensionsInVoxels().getY();
@@ -190,6 +191,9 @@ namespace PolyVox
 		const auto lowerCornerY = region.getLowerCorner().getZ();
 		const auto lowerCornerZ = region.getLowerCorner().getX();
 		
+		//logTrace() << "Setup took " << timer.elapsedTimeInMilliSeconds();
+		//timer.start();
+		
 		for(int32_t z = 0; z < gradientRegionZDimension; z++)
 		{
 			volSampler.setPosition(lowerCornerX-1, lowerCornerY-1, lowerCornerZ+z-1); //Reset x and y and increment z
@@ -216,6 +220,9 @@ namespace PolyVox
 				}
 			}
 		}
+		
+		//logTrace() << "Gradients took " << timer.elapsedTimeInMilliSeconds();
+		//timer.start();
 		
 		for(int32_t cellZ = 0; cellZ < cellRegionZDimension; cellZ++)
 		{
@@ -256,6 +263,9 @@ namespace PolyVox
 				}
 			}
 		}
+		
+		//logTrace() << "Edges took " << timer.elapsedTimeInMilliSeconds();
+		//timer.start();
 		
 		for(int32_t cellZ = 0; cellZ < cellRegionZDimension; cellZ++)
 		{
@@ -335,11 +345,12 @@ namespace PolyVox
 			}
 		}
 		
-		//logTrace() << "Dual contouring surface extraction took " << timer.elapsedTimeInMilliSeconds() << "ms (Region size = " << region.getWidthInVoxels() << "x" << region.getHeightInVoxels() << "x" << region.getDepthInVoxels() << ")";
+		//logTrace() << "Vertices and quads took " << timer.elapsedTimeInMilliSeconds();
+		//timer.start();
 		
-		logTrace() << "Dual contouring surface extraction took " << timer.elapsedTimeInMilliSeconds() << "ms (Region size = " << region.getWidthInVoxels() << "x" << region.getHeightInVoxels() << "x" << region.getDepthInVoxels() << ")";
+		logTrace() << "Dual contouring surface extraction took " << totalTimer.elapsedTimeInMilliSeconds() << "ms (Region size = " << region.getWidthInVoxels() << "x" << region.getHeightInVoxels() << "x" << region.getDepthInVoxels() << ")";
 		
-		std::cout << mesh.getNoOfVertices() << std::endl;
+		logTrace() << mesh.getNoOfVertices();
 		
 		return mesh;
 	}
