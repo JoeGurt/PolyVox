@@ -127,7 +127,7 @@ namespace PolyVox
 				matrix[rows][1] = normal.getY();
 				matrix[rows][2] = normal.getZ();
 				
-				Vector3DFloat p = vertices[i] - massPoint;
+				const Vector3DFloat p = vertices[i] - massPoint;
 				const Vector3DFloat product = normal * p;
 				
 				vector[rows] = product.getX() + product.getY() + product.getZ();
@@ -137,7 +137,7 @@ namespace PolyVox
 				++rows;
 			}
 			
-			const auto vertexPosition = evaluateQEF(matrix, vector, rows) + massPoint;
+			const auto& vertexPosition = evaluateQEF(matrix, vector, rows) + massPoint;
 			
 			if(cellVertexNormal.lengthSquared() > 0.000001f) 
 			{

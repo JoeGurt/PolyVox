@@ -35,7 +35,7 @@ Vector3DFloat evaluateQEF(
     double x[3];
     solveSVD(u, v, d, vec, x, rows);
 
-    return Vector3DFloat((float)x[0], (float)x[1], (float)x[2]);
+    return {(float)x[0], (float)x[1], (float)x[2]};
 }
 
 //----------------------------------------------------------------------------
