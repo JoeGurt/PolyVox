@@ -36,6 +36,7 @@ namespace PolyVox
 		template<typename VoxelType>
 		struct EdgeData
 		{
+			EdgeData() : intersects(false) {}
 			Vector3DFloat normal;
 			float fraction; ///<fraction (0.0-1.0) along the edge in the positive direction that the intersection happens
 			bool intersects;
@@ -161,22 +162,22 @@ namespace PolyVox
 		const auto regionYDimension = region.getDimensionsInVoxels().getY();
 		const auto regionZDimension = region.getDimensionsInVoxels().getZ();
 		
-		const auto cellRegionXDimension = regionXDimension+1;
-		const auto cellRegionYDimension = regionYDimension+1;
-		const auto cellRegionZDimension = regionZDimension+1;
+		const auto cellRegionXDimension = regionXDimension+2;
+		const auto cellRegionYDimension = regionYDimension+2;
+		const auto cellRegionZDimension = regionZDimension+2;
 		
 		const auto gradientRegionXDimension = regionXDimension+2;
 		const auto gradientRegionYDimension = regionYDimension+2;
 		const auto gradientRegionZDimension = regionZDimension+2;
 		
-		std::vector<std::pair<typename VolumeType::VoxelType*, Vector3DFloat>> gradients;
+		std::vector<std::pair<const typename VolumeType::VoxelType, const Vector3DFloat>> gradients;
 		gradients.reserve(gradientRegionXDimension * gradientRegionYDimension * gradientRegionZDimension);
 		
 		std::vector<CellData<typename VolumeType::VoxelType>> cells;
 		cells.reserve(cellRegionXDimension * cellRegionYDimension * cellRegionZDimension);
 		
 		typename VolumeType::Sampler volSampler{volData};
-		volSampler.setPosition(region.getLowerCorner());
+		volSampler.setPosition(region.getLowerCorner() - Vector3DInt32{1,1,1});
 		volSampler.setWrapMode(WrapMode::Border, -100.0); // -100.0 is well below the threshold
 		
 		const float threshold = 0.0f;
@@ -189,16 +190,17 @@ namespace PolyVox
 		const auto lowerCornerY = region.getLowerCorner().getZ();
 		const auto lowerCornerZ = region.getLowerCorner().getX();
 		
-		for(int32_t cellZ = 0; cellZ < cellRegionZDimension; cellZ++)
+		for(int32_t z = 0; z < gradientRegionZDimension; z++)
 		{
-			for(int32_t cellY = 0; cellY < cellRegionYDimension; cellY++)
+			volSampler.setPosition(lowerCornerX-1, lowerCornerY-1, lowerCornerZ+z-1); //Reset x and y and increment z
+			for(int32_t y = 0; y < gradientRegionYDimension; y++)
 			{
-				for(int32_t cellX = 0; cellX < cellRegionXDimension; cellX++)
+				volSampler.setPosition(lowerCornerX-1, lowerCornerY+y-1, lowerCornerZ+z-1); //Reset x and increment y (z remains the same)
+				for(int32_t x = 0; x < gradientRegionXDimension; x++)
 				{
-					//For each cell, calculate the edge intersection points and normals
-					volSampler.setPosition(lowerCornerX+cellX-1, lowerCornerY+cellY-1, lowerCornerZ+cellZ-1);
+					volSampler.movePositiveX(); //Increment x
 					
-					const auto& voxel = static_cast<float>(volSampler.getVoxel());
+					const auto& voxel = volSampler.getVoxel();
 					const auto& voxel1px = static_cast<float>(volSampler.peekVoxel1px0py0pz());
 					const auto& voxel1py = static_cast<float>(volSampler.peekVoxel0px1py0pz());
 					const auto& voxel1pz = static_cast<float>(volSampler.peekVoxel0px0py1pz());
@@ -206,30 +208,61 @@ namespace PolyVox
 					const auto& voxel1nx = static_cast<float>(volSampler.peekVoxel1nx0py0pz());
 					const auto& voxel1ny = static_cast<float>(volSampler.peekVoxel0px1ny0pz());
 					const auto& voxel1nz = static_cast<float>(volSampler.peekVoxel0px0py1nz());
-					const Vector3DFloat g000(voxel1nx - voxel1px, voxel1ny - voxel1py, voxel1nz - voxel1pz);
-					volSampler.movePositiveX();
-					const auto& voxel2px = static_cast<float>(volSampler.peekVoxel1px0py0pz());
-					const auto& voxel1px1ny = static_cast<float>(volSampler.peekVoxel0px1ny0pz());
-					const auto& voxel1px1py = static_cast<float>(volSampler.peekVoxel0px1py0pz());
-					const auto& voxel1px1nz = static_cast<float>(volSampler.peekVoxel0px0py1nz());
-					const auto& voxel1px1pz = static_cast<float>(volSampler.peekVoxel0px0py1pz());
-					const Vector3DFloat g100(voxel - voxel2px, voxel1px1ny - voxel1px1py, voxel1px1nz - voxel1px1pz);
-					volSampler.moveNegativeX();
-					volSampler.movePositiveY();
-					const auto& voxel1nx1py = static_cast<float>(volSampler.peekVoxel1nx0py0pz());
-					const auto& voxel2py = static_cast<float>(volSampler.peekVoxel0px1py0pz());
-					const auto& voxel1py1nz = static_cast<float>(volSampler.peekVoxel0px0py1nz());
-					const auto& voxel1py1pz = static_cast<float>(volSampler.peekVoxel0px0py1pz());
-					const Vector3DFloat g010(voxel1nx1py - voxel1px1py, voxel - voxel2py, voxel1py1nz - voxel1py1pz);
-					volSampler.moveNegativeY();
-					volSampler.movePositiveZ();
-					const auto& voxel1nx1pz = static_cast<float>(volSampler.peekVoxel1nx0py0pz());
-					const auto& voxel1ny1pz = static_cast<float>(volSampler.peekVoxel0px1ny0pz());
-					const auto& voxel2pz = static_cast<float>(volSampler.peekVoxel0px0py1pz());
-					const Vector3DFloat g001(voxel1nx1pz - voxel1px1pz, voxel1ny1pz - voxel1py1pz, voxel - voxel2pz);
+					const Vector3DFloat g(voxel1nx - voxel1px, voxel1ny - voxel1py, voxel1nz - voxel1pz);
 					
-					cells.push_back({calculateEdge(voxel, voxel1px, g000, g100, threshold), calculateEdge(voxel, voxel1py, g000, g010, threshold), calculateEdge(voxel, voxel1pz, g000, g001, threshold)});
+					std::pair<const typename VolumeType::VoxelType, Vector3DFloat> data(voxel, g);
 					
+					gradients.push_back(data);
+				}
+			}
+		}
+		
+		for(int32_t cellZ = 0; cellZ < cellRegionZDimension; cellZ++)
+		{
+			for(int32_t cellY = 0; cellY < cellRegionYDimension; cellY++)
+			{
+				for(int32_t cellX = 0; cellX < cellRegionXDimension; cellX++)
+				{
+					//For each cell, calculate the edge intersection points and normals
+					const auto& g000 = gradients[convert(cellX, cellY, cellZ, cellRegionXDimension, cellRegionYDimension)];
+					
+					//For the last columns/rows, only calculate the interior edge
+					if(cellX < cellRegionXDimension-1 && cellY < cellRegionYDimension-1 && cellZ < cellRegionZDimension-1) //This is the main bulk
+					{
+						const auto& g100 = gradients[convert(cellX+1, cellY, cellZ, cellRegionXDimension, cellRegionYDimension)];
+						const auto& g010 = gradients[convert(cellX, cellY+1, cellZ, cellRegionXDimension, cellRegionYDimension)];
+						const auto& g001 = gradients[convert(cellX, cellY, cellZ+1, cellRegionXDimension, cellRegionYDimension)];
+						cells.push_back({calculateEdge(g000.first, g100.first, g000.second, g100.second, threshold), calculateEdge(g000.first, g010.first, g000.second, g010.second, threshold), calculateEdge(g000.first, g001.first, g000.second, g001.second, threshold)});
+					}
+					else if(cellX == cellRegionXDimension-1 || cellY == cellRegionYDimension-1 || cellZ == cellRegionZDimension-1) //This is the three far edges and the far corner
+					{
+						cells.push_back({}); //Default and empty
+					}
+					else if(cellX == cellRegionXDimension-1) //Far x side
+					{
+						const auto& g100 = gradients[convert(cellX+1, cellY, cellZ, cellRegionXDimension, cellRegionYDimension)];
+						cells.push_back({calculateEdge(g000.first, g100.first, g000.second, g100.second, threshold), EdgeData<typename VolumeType::VoxelType>(), EdgeData<typename VolumeType::VoxelType>()});
+					}
+					else if(cellY == cellRegionYDimension-1) //Far y side
+					{
+						const auto& g010 = gradients[convert(cellX+1, cellY, cellZ, cellRegionXDimension, cellRegionYDimension)];
+						cells.push_back({EdgeData<typename VolumeType::VoxelType>(), calculateEdge(g000.first, g010.first, g000.second, g010.second, threshold), EdgeData<typename VolumeType::VoxelType>()});
+					}
+					else if(cellZ == cellRegionZDimension-1) //Far z side
+					{
+						const auto& g001 = gradients[convert(cellX+1, cellY, cellZ, cellRegionXDimension, cellRegionYDimension)];
+						cells.push_back({EdgeData<typename VolumeType::VoxelType>(), EdgeData<typename VolumeType::VoxelType>(), calculateEdge(g000.first, g001.first, g000.second, g001.second, threshold)});
+					}
+				}
+			}
+		}
+		
+		for(int32_t cellZ = 0; cellZ < cellRegionZDimension; cellZ++)
+		{
+			for(int32_t cellY = 0; cellY < cellRegionYDimension; cellY++)
+			{
+				for(int32_t cellX = 0; cellX < cellRegionXDimension; cellX++)
+				{
 					if(cellZ >= 1 && cellY >= 1 && cellX >= 1)
 					{
 						//After the first rows and columns are done, start calculating vertex positions
