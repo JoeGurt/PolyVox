@@ -160,16 +160,14 @@ namespace PolyVox
 	{
 		static_assert(std::is_signed<typename VolumeType::VoxelType>::value, "Voxel type must be signed");
 		
+		const float threshold = 0.0f;
+		
 		//Timer timer;
 		Timer totalTimer;
 		
 		const auto regionXDimension = region.getDimensionsInVoxels().getX();
 		const auto regionYDimension = region.getDimensionsInVoxels().getY();
 		const auto regionZDimension = region.getDimensionsInVoxels().getZ();
-		
-		const auto cellRegionXDimension = regionXDimension+2;
-		const auto cellRegionYDimension = regionYDimension+2;
-		const auto cellRegionZDimension = regionZDimension+2;
 		
 		const auto gradientRegionXDimension = regionXDimension+2;
 		const auto gradientRegionYDimension = regionYDimension+2;
@@ -178,18 +176,9 @@ namespace PolyVox
 		std::vector<std::pair<const typename VolumeType::VoxelType, const Vector3DFloat>> gradients;
 		gradients.reserve(gradientRegionXDimension * gradientRegionYDimension * gradientRegionZDimension);
 		
-		std::vector<CellData<typename VolumeType::VoxelType>> cells;
-		cells.reserve(cellRegionXDimension * cellRegionYDimension * cellRegionZDimension);
-		
 		typename VolumeType::Sampler volSampler{volData};
 		volSampler.setPosition(region.getLowerCorner() - Vector3DInt32{1,1,1});
 		volSampler.setWrapMode(WrapMode::Border, -100.0); // -100.0 is well below the threshold
-		
-		const float threshold = 0.0f;
-		
-		SurfaceMesh<PositionMaterialNormal> mesh;
-		
-		EdgeData<typename VolumeType::VoxelType>* edges[12]; //Create this now but it will be overwritten for each cell
 		
 		const auto lowerCornerX = region.getLowerCorner().getX();
 		const auto lowerCornerY = region.getLowerCorner().getZ();
@@ -216,17 +205,21 @@ namespace PolyVox
 					const auto& voxel1nx = volSampler.peekVoxel1nx0py0pz();
 					const auto& voxel1ny = volSampler.peekVoxel0px1ny0pz();
 					const auto& voxel1nz = volSampler.peekVoxel0px0py1nz();
-					const Vector3DFloat g(voxel1nx - voxel1px, voxel1ny - voxel1py, voxel1nz - voxel1pz);
 					
-					std::pair<const typename VolumeType::VoxelType, Vector3DFloat> data(voxel, g);
-					
-					gradients.push_back(data);
+					gradients.emplace_back(voxel, Vector3DFloat(voxel1nx - voxel1px, voxel1ny - voxel1py, voxel1nz - voxel1pz));
 				}
 			}
 		}
 		
 		//logTrace() << "Gradients took " << timer.elapsedTimeInMilliSeconds();
 		//timer.start();
+		
+		const auto cellRegionXDimension = regionXDimension+2;
+		const auto cellRegionYDimension = regionYDimension+2;
+		const auto cellRegionZDimension = regionZDimension+2;
+		
+		std::vector<CellData<typename VolumeType::VoxelType>> cells;
+		cells.reserve(cellRegionXDimension * cellRegionYDimension * cellRegionZDimension);
 		
 		for(int32_t cellZ = 0; cellZ < cellRegionZDimension; cellZ++)
 		{
@@ -270,6 +263,10 @@ namespace PolyVox
 		
 		//logTrace() << "Edges took " << timer.elapsedTimeInMilliSeconds();
 		//timer.start();
+		
+		EdgeData<typename VolumeType::VoxelType>* edges[12]; //Create this now but it will be overwritten for each cell
+		
+		SurfaceMesh<PositionMaterialNormal> mesh;
 		
 		for(int32_t cellZ = 0; cellZ < cellRegionZDimension; cellZ++)
 		{
