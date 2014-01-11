@@ -56,14 +56,14 @@ namespace PolyVox
 			
 			edge.fraction = static_cast<float>(vA - threshold) / static_cast<float>(vA - vB);
 			
-			if(edge.fraction > 1.0 || edge.fraction < 0.0)
+			if(std::min(vA,vB) <= threshold && std::max(vA,vB) > threshold)
 			{
-				edge.intersects = false;
-				return edge;
+				edge.intersects = true;
 			}
 			else
 			{
-				edge.intersects = true;
+				edge.intersects = false;
+				return edge;
 			}
 			
 			edge.normal = (gA * edge.fraction +  gB * (1.0f-edge.fraction));
