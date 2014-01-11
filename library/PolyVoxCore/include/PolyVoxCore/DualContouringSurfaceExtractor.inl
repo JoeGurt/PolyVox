@@ -69,7 +69,7 @@ namespace PolyVox
 			}
 			
 			edge.normal = (gA * edge.fraction +  gB * (1.0f-edge.fraction));
-			if(edge.normal.lengthSquared() > 0.000001f) 
+			if(edge.normal.lengthSquared() != 0.0f) 
 			{
 				edge.normal.normalise();
 			}
@@ -141,7 +141,7 @@ namespace PolyVox
 			
 			const auto& vertexPosition = evaluateQEF(matrix, vector, rows) + massPoint;
 			
-			if(cellVertexNormal.lengthSquared() > 0.000001f) 
+			if(cellVertexNormal.lengthSquared() != 0.0f)
 			{
 				cellVertexNormal.normalise();
 			}
