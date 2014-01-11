@@ -155,12 +155,12 @@ namespace PolyVox
 		}
 	}
 	
-	template<typename VolumeType>
-	SurfaceMesh<PositionMaterialNormal> dualContouringSurfaceExtractor(VolumeType* volData, Region region)
+	template<typename VolumeType, typename ControllerType>
+	SurfaceMesh<PositionMaterialNormal> dualContouringSurfaceExtractor(VolumeType* volData, Region region, ControllerType controller)
 	{
-		static_assert(std::is_signed<typename VolumeType::VoxelType>::value, "Voxel type must be signed");
+		static_assert(std::is_signed<typename ControllerType::DensityType>::value, "Voxel type must be signed");
 		
-		const float threshold = 0.0f;
+		const auto threshold = controller.getThreshold();
 		
 		//Timer timer;
 		Timer totalTimer;
@@ -197,14 +197,14 @@ namespace PolyVox
 				{
 					volSampler.movePositiveX(); //Increment x
 					
-					const auto& voxel = volSampler.getVoxel();
-					const auto& voxel1px = volSampler.peekVoxel1px0py0pz();
-					const auto& voxel1py = volSampler.peekVoxel0px1py0pz();
-					const auto& voxel1pz = volSampler.peekVoxel0px0py1pz();
+					const auto& voxel = controller.convertToDensity(volSampler.getVoxel());
+					const auto& voxel1px = controller.convertToDensity(volSampler.peekVoxel1px0py0pz());
+					const auto& voxel1py = controller.convertToDensity(volSampler.peekVoxel0px1py0pz());
+					const auto& voxel1pz = controller.convertToDensity(volSampler.peekVoxel0px0py1pz());
 					
-					const auto& voxel1nx = volSampler.peekVoxel1nx0py0pz();
-					const auto& voxel1ny = volSampler.peekVoxel0px1ny0pz();
-					const auto& voxel1nz = volSampler.peekVoxel0px0py1nz();
+					const auto& voxel1nx = controller.convertToDensity(volSampler.peekVoxel1nx0py0pz());
+					const auto& voxel1ny = controller.convertToDensity(volSampler.peekVoxel0px1ny0pz());
+					const auto& voxel1nz = controller.convertToDensity(volSampler.peekVoxel0px0py1nz());
 					
 					gradients.emplace_back(voxel, Vector3DFloat(voxel1nx - voxel1px, voxel1ny - voxel1py, voxel1nz - voxel1pz));
 				}
