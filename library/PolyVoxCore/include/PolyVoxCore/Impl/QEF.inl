@@ -2,6 +2,9 @@
 // ThreeD Quadric Error Function
 //----------------------------------------------------------------------------
 
+#include <cmath>
+#include <string>
+
 namespace PolyVox {
 
 //----------------------------------------------------------------------------
@@ -47,7 +50,7 @@ void computeSVD(
     double d[3],                    // vector (1x3)
     int rows)
 {
-    memcpy(u, mat, rows * 3 * sizeof(double));
+    std::memcpy(u, mat, rows * 3 * sizeof(double));
 
     double *tau_u = d;
     double tau_v[2];
@@ -157,12 +160,12 @@ double factorize_hh(double *ptrs[], int n)
     if (n > 1) {
         double xnorm;
         if (n == 2)
-            xnorm = fabs(*ptrs[1]);
+            xnorm = std::abs(*ptrs[1]);
         else {
             double scl = 0.0;
             double ssq = 1.0;
             for (int i = 1; i < n; ++i) {
-                double x = fabs(*ptrs[i]);
+                double x = std::abs(*ptrs[i]);
                 if (x != 0.0) {
                     if (scl < x) {
                         ssq = 1.0 + ssq * (scl / x) * (scl / x);
@@ -328,7 +331,7 @@ void chop(double *a, double *b, int n)
     for (int i = 0; i < n - 1; ++i) {
         double bi = b[i];
         double ai1 = a[i + 1];
-        if (fabs(bi) < EPSILON * (fabs(ai) + fabs(ai1)))
+        if (std::abs(bi) < EPSILON * (std::abs(ai) + std::abs(ai1)))
             b[i] = 0.0;
         ai = ai1;
     }
@@ -695,7 +698,7 @@ void computeGivens(
     if (b == 0.0) {
         *c = 1.0;
         *s = 0.0;
-    } else if (fabs(b) > fabs(a)) {
+    } else if (std::abs(b) > std::abs(a)) {
         double t = -a / b;
         double s1 = 1.0 / sqrt(1 + t * t);
         *s = s1;
@@ -799,7 +802,7 @@ void solveSVD(
     // compute vector w = U^T * b
 
     double w[3];
-    memcpy(w, zeroes, sizeof(w));
+    std::memcpy(w, zeroes, sizeof(w));
     for (i = 0; i < rows; ++i) {
         if (b[i] != 0.0)
             for (j = 0; j < 3; ++j)
