@@ -27,6 +27,8 @@ freely, subject to the following restrictions:
 
 #include "Impl/QEF.h"
 
+#include <type_traits>
+
 //BUG We will get duplucation of edges if the surface is along region boundaries
 
 namespace PolyVox
@@ -156,6 +158,8 @@ namespace PolyVox
 	template<typename VolumeType>
 	SurfaceMesh<PositionMaterialNormal> dualContouringSurfaceExtractor(VolumeType* volData, Region region)
 	{
+		static_assert(std::is_signed<typename VolumeType::VoxelType>::value, "Voxel type must be signed");
+		
 		//Timer timer;
 		Timer totalTimer;
 		
@@ -205,13 +209,13 @@ namespace PolyVox
 					volSampler.movePositiveX(); //Increment x
 					
 					const auto& voxel = volSampler.getVoxel();
-					const auto& voxel1px = static_cast<float>(volSampler.peekVoxel1px0py0pz());
-					const auto& voxel1py = static_cast<float>(volSampler.peekVoxel0px1py0pz());
-					const auto& voxel1pz = static_cast<float>(volSampler.peekVoxel0px0py1pz());
+					const auto& voxel1px = volSampler.peekVoxel1px0py0pz();
+					const auto& voxel1py = volSampler.peekVoxel0px1py0pz();
+					const auto& voxel1pz = volSampler.peekVoxel0px0py1pz();
 					
-					const auto& voxel1nx = static_cast<float>(volSampler.peekVoxel1nx0py0pz());
-					const auto& voxel1ny = static_cast<float>(volSampler.peekVoxel0px1ny0pz());
-					const auto& voxel1nz = static_cast<float>(volSampler.peekVoxel0px0py1nz());
+					const auto& voxel1nx = volSampler.peekVoxel1nx0py0pz();
+					const auto& voxel1ny = volSampler.peekVoxel0px1ny0pz();
+					const auto& voxel1nz = volSampler.peekVoxel0px0py1nz();
 					const Vector3DFloat g(voxel1nx - voxel1px, voxel1ny - voxel1py, voxel1nz - voxel1pz);
 					
 					std::pair<const typename VolumeType::VoxelType, Vector3DFloat> data(voxel, g);
