@@ -32,8 +32,8 @@ freely, subject to the following restrictions:
 
 namespace PolyVox
 {
-	template< typename VolumeType>
-	SurfaceMesh<PositionMaterialNormal> dualContouringSurfaceExtractor(VolumeType* volData, Region region);
+	template< typename VolumeType, typename ControllerType>
+	SurfaceMesh<PositionMaterialNormal> dualContouringSurfaceExtractor(VolumeType* volData, const Region& region, const ControllerType& controller);
 }
 
 #include "PolyVoxCore/DualContouringSurfaceExtractor.inl"

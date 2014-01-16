@@ -129,8 +129,7 @@ namespace PolyVox
 				matrix[rows][1] = normal.getY();
 				matrix[rows][2] = normal.getZ();
 				
-				const Vector3DFloat p = vertices[i] - massPoint;
-				const Vector3DFloat product = normal * p;
+				const Vector3DFloat product = normal * (vertices[i] - massPoint);
 				
 				vector[rows] = product.getX() + product.getY() + product.getZ();
 				
@@ -140,6 +139,8 @@ namespace PolyVox
 			}
 			
 			const auto& vertexPosition = evaluateQEF(matrix, vector, rows) + massPoint;
+			
+			POLYVOX_ASSERT(vertexPosition.getX() >= -0.01 && vertexPosition.getY() >= -0.01 && vertexPosition.getZ() >= -0.01 && vertexPosition.getX() <= 1.01 && vertexPosition.getY() <= 1.01 && vertexPosition.getZ() <= 1.01, "Vertex is outside unit cell"); //0.01 to give a little leniency
 			
 			if(cellVertexNormal.lengthSquared() != 0.0f)
 			{
@@ -156,7 +157,7 @@ namespace PolyVox
 	}
 	
 	template<typename VolumeType, typename ControllerType>
-	SurfaceMesh<PositionMaterialNormal> dualContouringSurfaceExtractor(VolumeType* volData, Region region, ControllerType controller)
+	SurfaceMesh<PositionMaterialNormal> dualContouringSurfaceExtractor(VolumeType* volData, const Region& region, const ControllerType& controller)
 	{
 		static_assert(std::is_signed<typename ControllerType::DensityType>::value, "Voxel type must be signed");
 		
