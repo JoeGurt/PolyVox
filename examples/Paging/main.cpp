@@ -21,23 +21,21 @@ freely, subject to the following restrictions:
     distribution. 	
 *******************************************************************************/
 
-#include "OpenGLWidget.h"
+#include "PolyVoxExample.h"
 #include "Perlin.h"
 
-#include "PolyVoxCore/MaterialDensityPair.h"
-#include "PolyVoxCore/CubicSurfaceExtractorWithNormals.h"
-#include "PolyVoxCore/MarchingCubesSurfaceExtractor.h"
-#include "PolyVoxCore/Pager.h"
-#include "PolyVoxCore/RLEBlockCompressor.h"
-#include "PolyVoxCore/SurfaceMesh.h"
-#include "PolyVoxCore/LargeVolume.h"
+#include "PolyVox/MaterialDensityPair.h"
+#include "PolyVox/CubicSurfaceExtractor.h"
+#include "PolyVox/MarchingCubesSurfaceExtractor.h"
+#include "PolyVox/Mesh.h"
+#include "PolyVox/PagedVolume.h"
 
 #include <QApplication>
 
 //Use the PolyVox namespace
 using namespace PolyVox;
 
-void createSphereInVolume(LargeVolume<MaterialDensityPair44>& volData, Vector3DFloat v3dVolCenter, float fRadius)
+void createSphereInVolume(PagedVolume<MaterialDensityPair44>& volData, Vector3DFloat v3dVolCenter, float fRadius)
 {
 	//This vector hold the position of the center of the volume
 	//Vector3DFloat v3dVolCenter(volData.getWidth() / 2, volData.getHeight() / 2, volData.getDepth() / 2);
@@ -79,24 +77,20 @@ void createSphereInVolume(LargeVolume<MaterialDensityPair44>& volData, Vector3DF
 /**
  * Generates data using Perlin noise.
  */
-class PerlinNoisePager : public PolyVox::Pager<MaterialDensityPair44>
+class PerlinNoisePager : public PolyVox::PagedVolume<MaterialDensityPair44>::Pager
 {
 public:
 	/// Constructor
 	PerlinNoisePager()
-		:Pager<MaterialDensityPair44>()
+		:PagedVolume<MaterialDensityPair44>::Pager()
 	{
 	}
 
 	/// Destructor
 	virtual ~PerlinNoisePager() {};
 
-	virtual void pageIn(const PolyVox::Region& region, CompressedBlock<MaterialDensityPair44>* pBlockData)
+	virtual void pageIn(const PolyVox::Region& region, PagedVolume<MaterialDensityPair44>::Chunk* pChunk)
 	{
-		// FIXME - this isn't a great example... it's a shame we have to hard clode the block size and also create/destroy
-		// a compressor each time. These could at least be moved outside somewhere if we can't fix it in a better way...
-		UncompressedBlock<MaterialDensityPair44> block(256);
-
 		Perlin perlin(2,2,1,234);
 
 		for(int x = region.getLowerX(); x <= region.getUpperX(); x++)
@@ -130,23 +124,66 @@ public:
 						voxel.setDensity(MaterialDensityPair44::getMinDensity());
 					}
 
-					// Voxel position within a block always start from zero. So if a block represents region (4, 8, 12) to (11, 19, 15)
-					// then the valid block voxels are from (0, 0, 0) to (7, 11, 3). Hence we subtract the lower corner position of the
-					// region from the volume space position in order to get the block space position.
-					block.setVoxelAt(x - region.getLowerX(), y - region.getLowerY(), z - region.getLowerZ(), voxel);
+					// Voxel position within a chunk always start from zero. So if a chunk represents region (4, 8, 12) to (11, 19, 15)
+					// then the valid chunk voxels are from (0, 0, 0) to (7, 11, 3). Hence we subtract the lower corner position of the
+					// region from the volume space position in order to get the chunk space position.
+					pChunk->setVoxelAt(x - region.getLowerX(), y - region.getLowerY(), z - region.getLowerZ(), voxel);
 				}
 			}
 		}
-
-		// Now compress the computed data into the provided block.
-		RLEBlockCompressor<MaterialDensityPair44>* compressor = new RLEBlockCompressor<MaterialDensityPair44>();
-		compressor->compress(&block, pBlockData);
-		delete compressor;
 	}
 
-	virtual void pageOut(const PolyVox::Region& region, CompressedBlock<MaterialDensityPair44>* /*pBlockData*/)
+	virtual void pageOut(const PolyVox::Region& region, PagedVolume<MaterialDensityPair44>::Chunk* /*pChunk*/)
 	{
 		std::cout << "warning unloading region: " << region.getLowerCorner() << " -> " << region.getUpperCorner() << std::endl;
+	}
+};
+
+class PagingExample : public PolyVoxExample
+{
+public:
+	PagingExample(QWidget *parent)
+		:PolyVoxExample(parent)
+	{
+	}
+
+protected:
+	void initializeExample() override
+	{
+		PerlinNoisePager* pager = new PerlinNoisePager();
+		PagedVolume<MaterialDensityPair44> volData(PolyVox::Region::MaxRegion(), pager, 64);
+		volData.setMemoryUsageLimit(8 * 1024 * 1024); // 8Mb
+
+		//createSphereInVolume(volData, 30);
+		//createPerlinTerrain(volData);
+		//createPerlinVolumeSlow(volData);
+		std::cout << "Memory usage: " << (volData.calculateSizeInBytes() / 1024.0 / 1024.0) << "MB" << std::endl;
+		//std::cout << "Compression ratio: 1 to " << (1.0/(volData.calculateCompressionRatio())) << std::endl;
+		PolyVox::Region reg(Vector3DInt32(-255, 0, 0), Vector3DInt32(255, 255, 255));
+		std::cout << "Prefetching region: " << reg.getLowerCorner() << " -> " << reg.getUpperCorner() << std::endl;
+		volData.prefetch(reg);
+		std::cout << "Memory usage: " << (volData.calculateSizeInBytes() / 1024.0 / 1024.0) << "MB" << std::endl;
+		//std::cout << "Compression ratio: 1 to " << (1.0/(volData.calculateCompressionRatio())) << std::endl;
+		PolyVox::Region reg2(Vector3DInt32(0, 0, 0), Vector3DInt32(255, 255, 255));
+		std::cout << "Flushing region: " << reg2.getLowerCorner() << " -> " << reg2.getUpperCorner() << std::endl;
+		volData.flush(reg2);
+		std::cout << "Memory usage: " << (volData.calculateSizeInBytes() / 1024.0 / 1024.0) << "MB" << std::endl;
+		//std::cout << "Compression ratio: 1 to " << (1.0/(volData.calculateCompressionRatio())) << std::endl;
+		std::cout << "Flushing entire volume" << std::endl;
+		volData.flushAll();
+		std::cout << "Memory usage: " << (volData.calculateSizeInBytes() / 1024.0 / 1024.0) << "MB" << std::endl;
+		//std::cout << "Compression ratio: 1 to " << (1.0/(volData.calculateCompressionRatio())) << std::endl;
+
+		//Extract the surface
+		auto mesh = extractCubicMesh(&volData, reg2);
+		std::cout << "#vertices: " << mesh.getNoOfVertices() << std::endl;
+
+		auto decodedMesh = decodeMesh(mesh);
+
+		//Pass the surface to the OpenGL window
+		addMesh(decodedMesh);
+
+		setCameraTransform(QVector3D(300.0f, 300.0f, 300.0f), -(PI / 4.0f), PI + (PI / 4.0f));
 	}
 };
 
@@ -154,47 +191,8 @@ int main(int argc, char *argv[])
 {
 	//Create and show the Qt OpenGL window
 	QApplication app(argc, argv);
-	OpenGLWidget openGLWidget(0);
+	PagingExample openGLWidget(0);
 	openGLWidget.show();
-
-	RLEBlockCompressor<MaterialDensityPair44>* compressor = new RLEBlockCompressor<MaterialDensityPair44>();
-	PerlinNoisePager* pager = new PerlinNoisePager();
-	LargeVolume<MaterialDensityPair44> volData(PolyVox::Region::MaxRegion, compressor, pager, 256);
-	volData.setMaxNumberOfBlocksInMemory(4096);
-	volData.setMaxNumberOfUncompressedBlocks(64);
-
-	//volData.setMaxNumberOfUncompressedBlocks(4096);
-	//createSphereInVolume(volData, 30);
-	//createPerlinTerrain(volData);
-	//createPerlinVolumeSlow(volData);
-	std::cout << "Memory usage: " << (volData.calculateSizeInBytes()/1024.0/1024.0) << "MB" << std::endl;
-	std::cout << "Compression ratio: 1 to " << (1.0/(volData.calculateCompressionRatio())) << std::endl;
-	//volData.setBlockCacheSize(64);
-	PolyVox::Region reg(Vector3DInt32(-255,0,0), Vector3DInt32(255,255,255));
-	std::cout << "Prefetching region: " << reg.getLowerCorner() << " -> " << reg.getUpperCorner() << std::endl;
-	volData.prefetch(reg);
-	std::cout << "Memory usage: " << (volData.calculateSizeInBytes()/1024.0/1024.0) << "MB" << std::endl;
-	std::cout << "Compression ratio: 1 to " << (1.0/(volData.calculateCompressionRatio())) << std::endl;
-	PolyVox::Region reg2(Vector3DInt32(0,0,0), Vector3DInt32(255,255,255));
-	std::cout << "Flushing region: " << reg2.getLowerCorner() << " -> " << reg2.getUpperCorner() << std::endl;
-	volData.flush(reg2);
-	std::cout << "Memory usage: " << (volData.calculateSizeInBytes()/1024.0/1024.0) << "MB" << std::endl;
-	std::cout << "Compression ratio: 1 to " << (1.0/(volData.calculateCompressionRatio())) << std::endl;
-	std::cout << "Flushing entire volume" << std::endl;
-	volData.flushAll();
-	std::cout << "Memory usage: " << (volData.calculateSizeInBytes()/1024.0/1024.0) << "MB" << std::endl;
-	std::cout << "Compression ratio: 1 to " << (1.0/(volData.calculateCompressionRatio())) << std::endl;
-
-	//Extract the surface
-	SurfaceMesh<PositionMaterialNormal> mesh;
-	CubicSurfaceExtractorWithNormals< LargeVolume<MaterialDensityPair44> > surfaceExtractor(&volData, reg, &mesh);
-	//MarchingCubesSurfaceExtractor< LargeVolume<MaterialDensityPair44> > surfaceExtractor(&volData, reg, &mesh);
-	//CubicSurfaceExtractorWithNormals<MaterialDensityPair44> surfaceExtractor(&volData, reg, &mesh);
-	surfaceExtractor.execute();
-	std::cout << "#vertices: " << mesh.getNoOfVertices() << std::endl;
-
-	//Pass the surface to the OpenGL window
-	openGLWidget.setSurfaceMeshToRender(mesh);
 
 	//Run the message pump.
 	return app.exec();

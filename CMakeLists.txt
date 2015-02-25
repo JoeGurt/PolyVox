@@ -20,7 +20,7 @@
 # 3. This notice may not be removed or altered from any source
 # distribution.
 
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.3)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.6)
 
 PROJECT(PolyVox)
 
@@ -43,24 +43,14 @@ IF(WIN32)
 ENDIF()
 
 # Qt is required for building the tests, the example and optionally for bundling the documentation
-FIND_PACKAGE(Qt4 COMPONENTS QtCore QtGui QtOpenGL QtTest)
-INCLUDE(${QT_USE_FILE})
-if(CMAKE_VERSION VERSION_LESS "2.8.6")
-	set_package_info(Doxygen "API documentation generator" http://www.doxygen.org "Building the API documentation")
-	set_package_info(Qt4 "C++ framework" http://qt-project.org "Building the examples and tests")
-else()
-	set_package_properties(Doxygen PROPERTIES URL http://www.doxygen.org DESCRIPTION "API documentation generator" TYPE OPTIONAL PURPOSE "Building the API documentation")
-	set_package_properties(Qt4 PROPERTIES DESCRIPTION "C++ framework" URL http://qt-project.org)
-	set_package_properties(Qt4 PROPERTIES TYPE RECOMMENDED PURPOSE "Building the examples")
-	set_package_properties(Qt4 PROPERTIES TYPE OPTIONAL PURPOSE "Building the tests")
-endif()
+find_package(Qt5Test 5.2)
+find_package(Qt5OpenGL 5.2)
 
-if(MSVC AND (MSVC_VERSION LESS 1600))
-	# Require boost for older (pre-vc2010) Visual Studio compilers
-	# See library/include/polyvoxcore/impl/TypeDef.h
-	find_package(Boost REQUIRED)
-	include_directories(${Boost_INCLUDE_DIRS})
-endif()
+set_package_properties(Doxygen PROPERTIES URL http://www.doxygen.org DESCRIPTION "API documentation generator" TYPE OPTIONAL PURPOSE "Building the API documentation")
+set_package_properties(Qt5Test PROPERTIES DESCRIPTION "C++ framework" URL http://qt-project.org)
+set_package_properties(Qt5Test PROPERTIES TYPE OPTIONAL PURPOSE "Building the tests")
+set_package_properties(Qt5OpenGL PROPERTIES DESCRIPTION "C++ framework" URL http://qt-project.org)
+set_package_properties(Qt5OpenGL PROPERTIES TYPE RECOMMENDED PURPOSE "Building the examples")
 
 IF(CMAKE_COMPILER_IS_GNUCXX) #Maybe "OR MINGW"
 	ADD_DEFINITIONS(-std=c++0x) #Enable C++0x mode
@@ -69,19 +59,15 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 	ADD_DEFINITIONS(-std=c++0x) #Enable C++0x mode
 endif()
 
-if(NOT MSVC) #This is causing problems in Visual Studio so disable it for now
-	INCLUDE(cmake/Modules/CheckCXX11Features.cmake)
-endif()
-
-ADD_SUBDIRECTORY(library)
+ADD_SUBDIRECTORY(include)
 
 OPTION(ENABLE_EXAMPLES "Should the examples be built" ON)
-IF(ENABLE_EXAMPLES AND QT_QTOPENGL_FOUND)
-	ADD_SUBDIRECTORY(examples/common)
+IF(ENABLE_EXAMPLES AND Qt5OpenGL_FOUND)
 	ADD_SUBDIRECTORY(examples/Basic)
 	ADD_SUBDIRECTORY(examples/Paging)
 	ADD_SUBDIRECTORY(examples/OpenGL)
 	ADD_SUBDIRECTORY(examples/SmoothLOD)
+	ADD_SUBDIRECTORY(examples/DecodeOnGPU)
 	ADD_SUBDIRECTORY(examples/Python)
 	SET(BUILD_EXAMPLES ON)
 ELSE()
@@ -91,9 +77,8 @@ ENDIF()
 INCLUDE(Packaging.cmake)
 
 OPTION(ENABLE_TESTS "Should the tests be built" ON)
-IF(ENABLE_TESTS AND QT_QTTEST_FOUND)
+IF(ENABLE_TESTS AND Qt5Test_FOUND)
 	INCLUDE(CTest)
-	MARK_AS_ADVANCED(FORCE DART_TESTING_TIMEOUT) #This is only needed to hide the variable in the GUI (CMake bug) until 2.8.5
 	MARK_AS_ADVANCED(FORCE BUILD_TESTING)
 	ADD_SUBDIRECTORY(tests)
 	SET(BUILD_TESTS ON)
@@ -109,6 +94,8 @@ ELSE()
 ENDIF()
 
 ADD_SUBDIRECTORY(documentation)
+
+ADD_SUBDIRECTORY(bindings)
 
 add_feature_info("Examples" BUILD_EXAMPLES "Examples of PolyVox usage")
 add_feature_info("Tests" BUILD_TESTS "Unit tests")

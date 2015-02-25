@@ -26,41 +26,45 @@ PROJECT(OpenGLExample)
 #Projects source files
 SET(SRC_FILES
 	main.cpp
-	OpenGLImmediateModeSupport.cpp
-	OpenGLSupport.cpp
-	OpenGLVertexBufferObjectSupport.cpp
-	OpenGLWidget.cpp
+	#OpenGLImmediateModeSupport.cpp
+	#OpenGLSupport.cpp
+	#OpenGLVertexBufferObjectSupport.cpp
+	../common/PolyVoxExample.cpp
 	Shapes.cpp
 	)
 
 #Projects headers files	
 SET(INC_FILES
-	OpenGLImmediateModeSupport.h
-	OpenGLSupport.h
-	OpenGLVertexBufferObjectSupport.h
-	OpenGLWidget.h
+	#OpenGLImmediateModeSupport.h
+	#OpenGLSupport.h
+	#OpenGLVertexBufferObjectSupport.h
+	../common/OpenGLWidget.h
+	../common/OpenGLWidget.inl
+	../common/PolyVoxExample.h
 	Shapes.h
 )
-
-add_definitions(-DGLEW_STATIC)
 
 #"Sources" and "Headers" are the group names in Visual Studio.
 #They may have other uses too...
 SOURCE_GROUP("Sources" FILES ${SRC_FILES})
 SOURCE_GROUP("Headers" FILES ${INC_FILES})
 
-FIND_PACKAGE(OpenGL REQUIRED)
-
 #Tell CMake the paths for OpenGL and for PolyVox (which is just relative to our current location)
-INCLUDE_DIRECTORIES(${OPENGL_INCLUDE_DIR} ${PolyVoxCore_BINARY_DIR}/include ${PolyVoxCore_SOURCE_DIR}/include ${GLEW_SOURCE_DIR})
-LINK_DIRECTORIES(${PolyVoxCore_BINARY_DIR})
+INCLUDE_DIRECTORIES(${OPENGL_INCLUDE_DIR} ${PolyVoxHeaders_SOURCE_DIR} ../common)
+
+#This will include the shader files inside the compiled binary
+QT5_ADD_RESOURCES(COMMON_RESOURCES_RCC ../common/example.qrc)
+QT5_ADD_RESOURCES(OPENGL_EXAMPLE_RESOURCES_RCC openglexample.qrc)
+
+# Put the resources in a seperate folder in Visual Studio
+SOURCE_GROUP("Resource Files" FILES ../common/example.qrc ${COMMON_RESOURCES_RCC})
 
 #Build
-ADD_EXECUTABLE(OpenGLExample ${SRC_FILES})
+ADD_EXECUTABLE(OpenGLExample ${SRC_FILES} ${COMMON_RESOURCES_RCC} ${OPENGL_EXAMPLE_RESOURCES_RCC})
 IF(MSVC)
 	SET_TARGET_PROPERTIES(OpenGLExample PROPERTIES COMPILE_FLAGS "/W4 /wd4127")
 ENDIF(MSVC)
-TARGET_LINK_LIBRARIES(OpenGLExample glew ${QT_LIBRARIES} ${OPENGL_gl_LIBRARY} ${OPENGL_glu_LIBRARY} PolyVoxCore)
+TARGET_LINK_LIBRARIES(OpenGLExample Qt5::OpenGL)
 SET_PROPERTY(TARGET OpenGLExample PROPERTY FOLDER "Examples")
 
 #Install - Only install the example in Windows
