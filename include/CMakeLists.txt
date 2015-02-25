@@ -39,6 +39,8 @@ SET(CORE_INC_FILES
 	PolyVox/DefaultIsQuadNeeded.h
 	PolyVox/DefaultMarchingCubesController.h
 	PolyVox/Density.h
+	PolyVox/DualContouringSurfaceExtractor.h
+	PolyVox/DualContouringSurfaceExtractor.inl
 	PolyVox/FilePager.h
 	PolyVox/GradientEstimators.h
 	PolyVox/GradientEstimators.inl
@@ -84,6 +86,8 @@ SET(IMPL_INC_FILES
 	PolyVox/Impl/ErrorHandling.h
 	PolyVox/Impl/Logging.h
 	PolyVox/Impl/MarchingCubesTables.h
+	PolyVox/Impl/QEF.h
+	PolyVox/Impl/QEF.inl
 	PolyVox/Impl/RandomUnitVectors.h
 	PolyVox/Impl/RandomVectors.h
 	PolyVox/Impl/Timer.h
